@@ -1,94 +1,68 @@
-"use strict";
+const cds = require('@sap/cds');
 
-/**
- * ReportingService Handler
- * Serves read-only projections over pre-built CDS views.
- *
- * Registered path : /reports
- * Entities exposed:
- *   - AvailableBooks      – books with stock in hand
- *   - OverdueBorrowings   – borrowings past their due date
- *   - BookPricing         – price tiers + GST breakdown
- *   - MemberActivity      – member profile snapshot
- */
-module.exports = class ReportingService extends cds.ApplicationService {
-
-  async init() {
+module.exports = cds.service.impl(function () {
 
     // ── AvailableBooks ───────────────────────────────────────────────────
-    /**
-     * Optionally inject stockCriticality at read time.
-     * CAP marks it @Core.Computed in the schema, so the DB won't store it;
-     * we compute it here based on availableCopies.
-     *
-     * Criticality values (SAP Fiori convention):
-     *   0 = Neutral  |  1 = Error (red)  |  2 = Warning (amber)  |  3 = Success (green)
-     */
-    this.after('READ', 'AvailableBooks', (books) => {
-      if (!Array.isArray(books)) books = [books];
-      books.forEach(book => {
-        if (book.availableCopies == null) return;
-        if (book.availableCopies === 0)       book.stockCriticality = 1; // Error
-        else if (book.availableCopies <= 3)   book.stockCriticality = 2; // Warning
-        else                                   book.stockCriticality = 3; // Success
-      });
+    this.after('READ', 'AvailableBooks', async (books) => {
+        books = Array.isArray(books) ? books : [books];
+
+        for (const book of books) {
+            if (!book) continue;
+
+            // Stock criticality based on availableCopies
+            if (book.availableCopies === 0) {
+                book.stockCriticality = 1; // Red
+            } else if (book.availableCopies <= 3) {
+                book.stockCriticality = 2; // Orange
+            } else {
+                book.stockCriticality = 3; // Green
+            }
+
+            // Average rating from Reviews
+            const reviews = await SELECT.from('lib.management.Reviews')
+                .where({ book_ID: book.ID });
+
+            book.totalReviews = reviews.length;
+            book.averageRating = reviews.length
+                ? +(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+                : 0.0;
+        }
     });
 
     // ── OverdueBorrowings ────────────────────────────────────────────────
-    /**
-     * Dynamically calculate fine amount when the record is read.
-     * Fine rule: ₹5 per day overdue (only applied if fineAmount is 0 / null).
-     */
     this.after('READ', 'OverdueBorrowings', (borrowings) => {
-      if (!Array.isArray(borrowings)) borrowings = [borrowings];
-      const today = new Date();
+        borrowings = Array.isArray(borrowings) ? borrowings : [borrowings];
 
-      borrowings.forEach(b => {
-        if (!b.dueDate) return;
-        const due = new Date(b.dueDate);
-        const overdueDays = Math.max(0, Math.floor((today - due) / 86_400_000));
+        const today = new Date();
 
-        // Only override if the stored value is missing / zero
-        if (!b.fineAmount && overdueDays > 0) {
-          b.fineAmount = +(overdueDays * 5).toFixed(2); // ₹5/day
+        for (const b of borrowings) {
+            if (!b || !b.dueDate) continue;
+
+            const due = new Date(b.dueDate);
+            const overdueDays = Math.max(0, Math.floor((today - due) / 86_400_000));
+
+            b.overdueDays = overdueDays;
+
+            // Fine: ₹5 per day, only if not already set
+            if (!b.fineAmount && overdueDays > 0) {
+                b.fineAmount = +(overdueDays * 5).toFixed(2);
+            }
         }
-        // Attach a human-readable overdue label
-        b.overdueDays = overdueDays;
-      });
     });
-
-    // ── BookPricing ──────────────────────────────────────────────────────
-    /**
-     * No runtime enrichment needed – all calculated columns are handled
-     * inside the CDS view (memberPrice, gstAmount, priceWithGST, priceCategory).
-     * Add custom logic here if pricing rules ever become dynamic.
-     */
 
     // ── MemberActivity ───────────────────────────────────────────────────
-    /**
-     * Mask the email domain for inactive members before returning.
-     * Active members see full email; inactive members see  j***@***.com style.
-     */
     this.after('READ', 'MemberActivity', (members) => {
-      if (!Array.isArray(members)) members = [members];
-      members.forEach(m => {
-        if (!m.isActive && m.email) {
-          const [local, domain] = m.email.split('@');
-          m.email = `${local[0]}***@***.${domain?.split('.').pop() ?? 'com'}`;
+        members = Array.isArray(members) ? members : [members];
+
+        for (const m of members) {
+            if (!m) continue;
+
+            // Mask email for inactive members
+            if (!m.isActive && m.email) {
+                const [local, domain] = m.email.split('@');
+                m.email = `${local[0]}***@***.${domain?.split('.').pop() ?? 'com'}`;
+            }
         }
-      });
     });
 
-    // ── Error handling helper ────────────────────────────────────────────
-    this.on('error', (err, _req) => {
-      // Normalise database-level errors into readable OData error responses
-      if (err.code === 'SQLITE_ERROR' || err.code === 'ERR_DB') {
-        err.message = `Database error in ReportingService: ${err.message}`;
-        err.status  = 500;
-      }
-    });
-
-    // Always call super so CAP wires up the remaining CRUD machinery
-    return super.init();
-  }
-};
+});
