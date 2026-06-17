@@ -65,4 +65,25 @@ module.exports = cds.service.impl(function () {
         }
     });
 
+    // ── AuthorSummary ────────────────────────────────────────────────────
+    this.after('READ', 'AuthorSummary', async (authors) => {
+    authors = Array.isArray(authors) ? authors : [authors];
+
+    for (const author of authors) {
+        if (!author) continue;
+
+        // Get all books by this author
+        const books = await SELECT.from('lib.management.Books')
+            .where({ author_ID: author.ID });
+
+        author.totalBooks = books.length;
+
+        // Average of all book ratings
+        const rated = books.filter(b => b.averageRating > 0);
+        author.authorRating = rated.length
+            ? +(rated.reduce((sum, b) => sum + b.averageRating, 0) / rated.length).toFixed(1)
+            : 0.0;
+    }
+    });
+
 });
