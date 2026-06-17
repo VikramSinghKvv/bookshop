@@ -3,6 +3,7 @@ using lib.views as views from '../db/views';
 service ReportingService @(path:'/reports') {
 
   @readonly
+  @title: 'Available Books'
   entity AvailableBooks as projection on views.AvailableBooks;
 
   @readonly
