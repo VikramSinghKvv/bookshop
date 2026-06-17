@@ -50,7 +50,7 @@ entity Books {
   publishedDate     : Date;
   language          : String(30);
   edition           : Integer;
-  totalCopies       : Integer;
+  totalCopies       : Integer default 100;
   availableCopies   : Integer;
   summary           : String(2000);
 
