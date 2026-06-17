@@ -13,4 +13,6 @@ service ReportingService @(path:'/reports') {
 
   @readonly
   entity MemberActivity as projection on views.MemberActivity;
+  @readonly
+  entity AuthorSummary as projection on views.AuthorSummary;
 }
