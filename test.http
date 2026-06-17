@@ -1,0 +1,35 @@
+### Get all books with their authors
+http://localhost:4004/odata/v4/catalog/Books?$expand=author
+
+### Available books with calculated fields:
+GET http://localhost:4004/reports/AvailableBooks
+
+###
+GET http://localhost:4004/reports/OverdueBorrowings
+
+###
+GET http://localhost:4004/reports/BookPricing
+
+###
+GET http://localhost:4004/reports/BookPricing?$filter=priceCategory eq 'Premium'
+
+###
+GET https://port4004-workspaces-ws-1rn78.us10.trial.applicationstudio.cloud.sap/reports/AvailableBooks
+
+### Overdue borrowings with member contact info:
+GET http://localhost:4004/reports/OverdueBorrowings
+
+// Book pricing with GST calculations:
+GET http://localhost:4004/reports/BookPricing
+
+// Filter premium books only:
+GET http://localhost:4004/reports/BookPricing?$filter=priceCategory eq 'Premium'
+
+###
+GET http://localhost:4004/reports/MemberActivity?$filter=isActive eq true
+
+// Member activity:
+GET http://localhost:4004/reports/MemberActivity?$filter=isActive eq true
+
+###
+http://localhost:4004/odata/v4/catalog/$metadata
