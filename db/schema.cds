@@ -25,6 +25,8 @@ entity Authors {
 
   // IMPORTANT: inverse association (OData-safe)
   books           : Association to many Books on books.author = $self;
+  authorRating      : Decimal(3,1);    // avg across all their books
+  totalBooks        : Integer;         // count of books published
 }
 
 // ───────────────── GENRES ─────────────────
@@ -59,6 +61,8 @@ entity Books {
   reviews           : Association to many Reviews on reviews.book = $self;
   borrowings        : Association to many Borrowings on borrowings.book = $self;
   stockCriticality    : Integer @Core.Computed;
+  averageRating     : Decimal(3,1);    // e.g. 4.5
+  totalReviews      : Integer;         // computed count of reviews
 
 }
 
