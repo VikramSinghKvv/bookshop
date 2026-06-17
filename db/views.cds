@@ -49,3 +49,12 @@ entity MemberActivity as select from management.Members {
   maxBooks,
   isActive
 };
+//author sumary
+entity AuthorSummary as select from management.Authors {
+  ID,
+  firstName || ' ' || lastName as fullName : String(101),
+  nationality,
+  authorRating,
+  totalBooks,
+  isActive
+};
